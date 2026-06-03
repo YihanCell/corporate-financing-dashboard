@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>集团融资看盘</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand-block">
+        <p class="eyebrow">GROUP TREASURY MONITOR</p>
+        <h1>集团融资看盘</h1>
+        <p class="subtitle">融资余额、期限压力、利率成本与对外明细生成</p>
+      </div>
+      <div class="actions">
+        <button class="ghost-button" id="exportButton" type="button" disabled>获取融资明细</button>
+        <label class="upload compact-upload" id="topDropZone">
+          <input id="fileInput" type="file" accept=".xlsx" />
+          <span class="upload-icon">+</span>
+          <span>导入台账</span>
+        </label>
+      </div>
+    </header>
+
+    <main>
+      <section class="import-hero" id="emptyState">
+        <label class="import-drop" id="dropZone">
+          <input id="heroFileInput" type="file" accept=".xlsx" />
+          <span class="import-mark">+</span>
+          <strong>拖入或选择最新融资情况表</strong>
+          <small>页面不会预置你的台账数据。导入后仅在本机解析第二个工作表，并生成看盘。</small>
+        </label>
+      </section>
+
+      <section class="workspace is-hidden" id="workspace">
+        <section class="status-row">
+          <div>
+            <span id="sourceName">尚未导入数据</span>
+            <small id="sheetName"></small>
+          </div>
+          <div id="loadedAt"></div>
+        </section>
+
+        <section class="kpi-grid">
+          <article class="kpi primary">
+            <span>当前融资余额</span>
+            <strong id="totalBalance">--</strong>
+            <small>万元</small>
+          </article>
+          <article class="kpi">
+            <span>融资笔数</span>
+            <strong id="loanCount">--</strong>
+            <small>余额大于 0</small>
+          </article>
+          <article class="kpi">
+            <span>一年内到期</span>
+            <strong id="dueOneYear">--</strong>
+            <small>万元</small>
+          </article>
+          <article class="kpi rate-card">
+            <div class="kpi-title-row">
+              <span>加权平均利率</span>
+              <select id="rateScope">
+                <option value="all">全部</option>
+                <option value="bond">债券</option>
+                <option value="working">流贷</option>
+                <option value="fixed">固贷</option>
+                <option value="loan">贷款</option>
+              </select>
+            </div>
+            <strong id="weightedRate">--</strong>
+            <small id="weightedRateNote">按余额加权</small>
+          </article>
+        </section>
+
+        <section class="chart-shell">
+          <div class="section-title">
+            <div>
+              <h2>管理视角</h2>
+              <span>按融资管理常用口径拆解，点击条目可联动明细</span>
+            </div>
+          </div>
+
+          <div class="dashboard-grid">
+            <article class="panel embedded">
+              <div class="panel-head">
+                <h2>到期压力</h2>
+                <span>看偿债时间压力</span>
+              </div>
+              <div id="maturityBars" class="bars compact clickable-bars"></div>
+            </article>
+
+            <article class="panel embedded">
+              <div class="panel-head">
+                <h2>利率分层</h2>
+                <span>定位高成本融资</span>
+              </div>
+              <div id="rateBars" class="bars clickable-bars"></div>
+            </article>
+
+            <article class="panel embedded">
+              <div class="panel-head">
+                <h2>融资品种结构</h2>
+                <span>看资金来源结构</span>
+              </div>
+              <div id="productBars" class="bars clickable-bars"></div>
+            </article>
+
+            <article class="panel embedded">
+              <div class="panel-head">
+                <h2>一年内到期品种</h2>
+                <span>看近期偿债来源</span>
+              </div>
+              <div id="nearTermProductBars" class="bars compact clickable-bars"></div>
+            </article>
+
+            <article class="panel embedded wide">
+              <div class="panel-head">
+                <h2>主体集中度 TOP10</h2>
+                <span>看融资主体敞口集中情况</span>
+              </div>
+              <div id="borrowerBars" class="bars dense clickable-bars"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>融资明细</h2>
+              <span class="subnote">筛选已并入表头，点击表头名称可排序</span>
+            </div>
+            <div class="table-actions">
+              <button class="text-button" id="resetFilters" type="button">清空筛选</button>
+              <span id="tableCount"></span>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th data-sort="borrower">融资主体</th>
+                  <th data-sort="institution">机构名称</th>
+                  <th data-sort="product">融资品种</th>
+                  <th data-sort="balance" class="number">余额</th>
+                  <th data-sort="rate" class="number rate-head">当前利率</th>
+                  <th data-sort="maturityDate">到期日期</th>
+                  <th>用途</th>
+                </tr>
+                <tr class="table-filter-row">
+                  <th><select id="borrowerFilter"></select></th>
+                  <th><select id="institutionFilter"></select></th>
+                  <th><select id="productFilter"></select></th>
+                  <th></th>
+                  <th></th>
+                  <th>
+                    <select id="maturityFilter">
+                      <option value="all">全部到期</option>
+                      <option value="overdue">已到期</option>
+                      <option value="90">90天内</option>
+                      <option value="bucket-180">91-180天</option>
+                      <option value="bucket-365">181-365天</option>
+                      <option value="365">一年内</option>
+                      <option value="long">一年后</option>
+                      <option value="no-date">未填到期日</option>
+                    </select>
+                  </th>
+                  <th><input id="searchInput" placeholder="搜索用途/备注" /></th>
+                </tr>
+              </thead>
+              <tbody id="detailBody"></tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="3">合计</td>
+                  <td class="number" id="summaryBalance">--</td>
+                  <td class="number" id="summaryRate">--</td>
+                  <td id="summaryDue">--</td>
+                  <td id="summaryCount">--</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
