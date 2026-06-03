@@ -288,8 +288,14 @@ main {
 
 .rate-card select {
   height: 32px;
-  max-width: 96px;
+  max-width: 150px;
   padding: 0 8px;
+}
+
+.text-button:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 input,

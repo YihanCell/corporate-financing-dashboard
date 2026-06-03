@@ -37,6 +37,7 @@ const els = {
   maturityFilter: document.querySelector("#maturityFilter"),
   resetFilters: document.querySelector("#resetFilters"),
   exportButton: document.querySelector("#exportButton"),
+  exportFilteredButton: document.querySelector("#exportFilteredButton"),
   fileInput: document.querySelector("#fileInput"),
   heroFileInput: document.querySelector("#heroFileInput"),
   dropZone: document.querySelector("#dropZone"),
@@ -55,6 +56,14 @@ const rateScopes = {
   working: { label: "流贷", matcher: (row) => (row.product || "").includes("流贷") },
   fixed: { label: "固贷", matcher: (row) => (row.product || "").includes("固定资产贷款") },
   loan: { label: "贷款", matcher: (row) => /贷/.test(row.product || "") },
+  termShort: { label: "三年及以下", matcher: (row) => {
+    const years = termYears(row);
+    return years !== null && years <= 3;
+  } },
+  termLong: { label: "三年以上", matcher: (row) => {
+    const years = termYears(row);
+    return years !== null && years > 3;
+  } },
 };
 
 function money(value) {
@@ -76,6 +85,23 @@ function daysUntil(value) {
   const d = new Date(value);
   d.setHours(0, 0, 0, 0);
   return Math.round((d - today) / 86400000);
+}
+
+function termYears(row) {
+  if (row.startDate && row.maturityDate) {
+    const start = new Date(row.startDate);
+    const end = new Date(row.maturityDate);
+    if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && end > start) {
+      return (end - start) / 86400000 / 365.25;
+    }
+  }
+  const text = String(row.term || "");
+  if (!text) return null;
+  const plusParts = text.match(/\d+(?:\.\d+)?/g);
+  if (!plusParts) return null;
+  const total = plusParts.map(Number).reduce((acc, value) => acc + value, 0);
+  if (text.includes("月")) return total / 12;
+  return total;
 }
 
 function sum(rows, key = "balance") {
@@ -103,7 +129,10 @@ function maturityBucket(row) {
   const days = daysUntil(row.maturityDate);
   if (days === null) return "未填到期日";
   if (days < 0) return "已到期";
-  if (days <= 90) return "90天内";
+  if (days <= 7) return "7天内";
+  if (days <= 30) return "8-30天";
+  if (days <= 60) return "31-60天";
+  if (days <= 90) return "61-90天";
   if (days <= 180) return "91-180天";
   if (days <= 365) return "181-365天";
   return "一年后";
@@ -133,7 +162,10 @@ function filterValueForRateBucket(label) {
 function filterValueForBucket(label) {
   return {
     已到期: "overdue",
-    "90天内": "90",
+    "7天内": "7",
+    "8-30天": "bucket-30",
+    "31-60天": "bucket-60",
+    "61-90天": "bucket-90",
     "91-180天": "bucket-180",
     "181-365天": "bucket-365",
     一年后: "long",
@@ -187,7 +219,7 @@ function renderSummary(rows) {
     },
   });
 
-  const maturityOrder = ["已到期", "90天内", "91-180天", "181-365天", "一年后", "未填到期日"];
+  const maturityOrder = ["已到期", "7天内", "8-30天", "31-60天", "61-90天", "91-180天", "181-365天", "一年后", "未填到期日"];
   const byMaturity = maturityOrder
     .map((label) => ({
       label,
@@ -256,7 +288,13 @@ function matchesMaturity(row, filter) {
   if (filter === "all") return true;
   const days = daysUntil(row.maturityDate);
   if (filter === "overdue") return days !== null && days < 0;
+  if (filter === "7") return days !== null && days >= 0 && days <= 7;
+  if (filter === "30") return days !== null && days >= 0 && days <= 30;
+  if (filter === "60") return days !== null && days >= 0 && days <= 60;
   if (filter === "90") return days !== null && days >= 0 && days <= 90;
+  if (filter === "bucket-30") return days !== null && days > 7 && days <= 30;
+  if (filter === "bucket-60") return days !== null && days > 30 && days <= 60;
+  if (filter === "bucket-90") return days !== null && days > 60 && days <= 90;
   if (filter === "bucket-180") return days !== null && days > 90 && days <= 180;
   if (filter === "bucket-365") return days !== null && days > 180 && days <= 365;
   if (filter === "365") return days !== null && days >= 0 && days <= 365;
@@ -376,6 +414,7 @@ function showWorkspace() {
   els.emptyState.classList.add("is-hidden");
   els.workspace.classList.remove("is-hidden");
   els.exportButton.disabled = false;
+  els.exportFilteredButton.disabled = false;
 }
 
 function loadPayload(payload) {
@@ -393,6 +432,16 @@ function loadPayload(payload) {
 async function loadDefaultForTest() {
   const res = await fetch("/api/load-default");
   loadPayload(await res.json());
+}
+
+async function loadCurrentFromServer() {
+  try {
+    const res = await fetch("/api/current");
+    if (!res.ok) return;
+    loadPayload(await res.json());
+  } catch (error) {
+    // Keep the import screen available when the server has no current workbook.
+  }
 }
 
 async function uploadFile(file) {
@@ -450,6 +499,37 @@ async function exportDetails() {
   }
 }
 
+async function exportFilteredDetails() {
+  if (!state.loaded) return;
+  els.exportFilteredButton.disabled = true;
+  els.exportFilteredButton.textContent = "正在导出...";
+  try {
+    const res = await fetch("/api/export-filtered", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rows: state.filtered }),
+    });
+    if (!res.ok) {
+      const payload = await res.json();
+      throw new Error(payload.error || "导出失败");
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `筛选融资明细（${new Date().toISOString().slice(0, 10).replaceAll("-", "")}）.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    els.exportFilteredButton.disabled = !state.loaded;
+    els.exportFilteredButton.textContent = "导出当前筛选";
+  }
+}
+
 function bindDropZone(label, input) {
   input.addEventListener("change", (event) => uploadFile(event.target.files[0]));
   label.addEventListener("dragover", (event) => {
@@ -472,6 +552,7 @@ els.maturityFilter.addEventListener("change", applyFilters);
 els.rateScope.addEventListener("change", () => renderSummary(state.filtered));
 els.resetFilters.addEventListener("click", () => resetFilters());
 els.exportButton.addEventListener("click", exportDetails);
+els.exportFilteredButton.addEventListener("click", exportFilteredDetails);
 bindDropZone(els.dropZone, els.heroFileInput);
 bindDropZone(els.topDropZone, els.fileInput);
 
@@ -490,4 +571,6 @@ document.querySelectorAll("th[data-sort]").forEach((th) => {
 
 if (new URLSearchParams(location.search).get("sample") === "1") {
   loadDefaultForTest();
+} else {
+  loadCurrentFromServer();
 }

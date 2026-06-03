@@ -29,7 +29,7 @@
           <input id="heroFileInput" type="file" accept=".xlsx" />
           <span class="import-mark">+</span>
           <strong>拖入或选择最新融资情况表</strong>
-          <small>页面不会预置你的台账数据。导入后仅在本机解析第二个工作表，并生成看盘。</small>
+          <small>管理员在服务端导入后，同事打开局域网地址即可直接查看最新看盘。</small>
         </label>
       </section>
 
@@ -67,6 +67,8 @@
                 <option value="working">流贷</option>
                 <option value="fixed">固贷</option>
                 <option value="loan">贷款</option>
+                <option value="termShort">三年及以下</option>
+                <option value="termLong">三年以上</option>
               </select>
             </div>
             <strong id="weightedRate">--</strong>
@@ -132,6 +134,7 @@
               <span class="subnote">筛选已并入表头，点击表头名称可排序</span>
             </div>
             <div class="table-actions">
+              <button class="text-button" id="exportFilteredButton" type="button" disabled>导出当前筛选</button>
               <button class="text-button" id="resetFilters" type="button">清空筛选</button>
               <span id="tableCount"></span>
             </div>
@@ -158,6 +161,9 @@
                     <select id="maturityFilter">
                       <option value="all">全部到期</option>
                       <option value="overdue">已到期</option>
+                      <option value="7">7天内</option>
+                      <option value="30">30天内</option>
+                      <option value="60">60天内</option>
                       <option value="90">90天内</option>
                       <option value="bucket-180">91-180天</option>
                       <option value="bucket-365">181-365天</option>

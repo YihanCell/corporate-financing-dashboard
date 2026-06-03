@@ -22,6 +22,8 @@ ROOT = Path(__file__).resolve().parent
 STATIC_DIR = ROOT / "static"
 UPLOAD_DIR = ROOT / "uploads"
 EXPORT_DIR = ROOT / "data"
+PAYLOAD_PATH = EXPORT_DIR / "current_payload.json"
+FALLBACK_PAYLOAD_PATH = Path(r"C:\tmp\finance-dashboard\current_payload.json")
 DEFAULT_SOURCE_DIR = Path(
     r"C:\Users\Administrator\Documents\xwechat_files\Oscar19_bb53\temp\RWTemp\2026-05\ec86b6af4ed5d2f92c94c55cff820f25"
 )
@@ -46,6 +48,28 @@ COL = {
 }
 
 LATEST_PAYLOAD: dict | None = None
+
+
+def save_current_payload(payload: dict) -> None:
+    data = json.dumps(payload, ensure_ascii=False)
+    for path in (PAYLOAD_PATH, FALLBACK_PAYLOAD_PATH):
+        try:
+            path.parent.mkdir(exist_ok=True)
+            path.write_text(data, encoding="utf-8")
+            return
+        except OSError:
+            continue
+
+
+def load_current_payload() -> dict | None:
+    for path in (PAYLOAD_PATH, FALLBACK_PAYLOAD_PATH):
+        if not path.exists():
+            continue
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+    return None
 
 
 def clean_value(value):
@@ -257,6 +281,92 @@ def create_external_detail_workbook(payload: dict) -> bytes:
     return data
 
 
+def create_filtered_detail_workbook(rows: list[dict]) -> bytes:
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "\u7b5b\u9009\u660e\u7ec6"
+    headers = [
+        "\u5e8f\u53f7",
+        "\u878d\u8d44\u4e3b\u4f53",
+        "\u673a\u6784\u540d\u79f0",
+        "\u878d\u8d44\u54c1\u79cd",
+        "\u7528\u9014",
+        "\u6388\u4fe1\u989d\u5ea6\uff08\u4e07\u5143\uff09",
+        "\u63d0\u6b3e\u91d1\u989d\uff08\u4e07\u5143\uff09",
+        "\u8d37\u6b3e\u4f59\u989d\uff08\u4e07\u5143\uff09",
+        "\u5f53\u524d\u5229\u7387",
+        "\u8d77\u606f\u65e5\u671f",
+        "\u5230\u671f\u65e5\u671f",
+        "\u8fd8\u6b3e\u671f\u9650",
+        "\u62c5\u4fdd\u65b9\u5f0f",
+        "\u8fd8\u6b3e\u8ba1\u5212",
+        "\u5907\u6ce8",
+    ]
+    ws.append(headers)
+    for idx, row in enumerate(rows, start=1):
+        ws.append(
+            [
+                idx,
+                row.get("borrower"),
+                row.get("institution"),
+                row.get("product"),
+                row.get("purpose"),
+                row.get("credit"),
+                row.get("draw"),
+                row.get("balance"),
+                row.get("rate"),
+                row.get("startDate"),
+                row.get("maturityDate"),
+                row.get("term"),
+                row.get("guarantee"),
+                row.get("repaymentPlan"),
+                row.get("notes"),
+            ]
+        )
+
+    if rows:
+        summary_row = ws.max_row + 1
+        ws.cell(summary_row, 1, "\u5408\u8ba1")
+        ws.cell(summary_row, 8, sum(to_number(row.get("balance")) for row in rows))
+        denominator = sum(to_number(row.get("balance")) for row in rows)
+        if denominator:
+            ws.cell(
+                summary_row,
+                9,
+                sum(to_number(row.get("balance")) * to_number(row.get("rate")) for row in rows) / denominator,
+            )
+
+    header_fill = PatternFill("solid", fgColor="D9EAF7")
+    total_fill = PatternFill("solid", fgColor="102B46")
+    border_side = Side(style="thin", color="9AA6B2")
+    border = Border(left=border_side, right=border_side, top=border_side, bottom=border_side)
+    for row in ws.iter_rows():
+        for cell in row:
+            cell.border = border
+            cell.alignment = Alignment(vertical="center", wrap_text=True)
+            if cell.row == 1:
+                cell.fill = header_fill
+                cell.font = Font(bold=True)
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+            elif cell.row == ws.max_row and rows:
+                cell.fill = total_fill
+                cell.font = Font(bold=True, color="FFFFFF")
+    for col, width in enumerate([8, 34, 24, 18, 28, 16, 16, 18, 12, 14, 14, 14, 28, 30, 36], start=1):
+        ws.column_dimensions[get_column_letter(col)].width = width
+    for cell in ws["F"][1:] + ws["G"][1:] + ws["H"][1:]:
+        cell.number_format = '#,##0.00'
+    for cell in ws["I"][1:]:
+        cell.number_format = "0.00%"
+    ws.freeze_panes = "A2"
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as handle:
+        temp_path = Path(handle.name)
+    wb.save(temp_path)
+    data = temp_path.read_bytes()
+    temp_path.unlink(missing_ok=True)
+    return data
+
+
 class DashboardHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(STATIC_DIR), **kwargs)
@@ -265,6 +375,9 @@ class DashboardHandler(SimpleHTTPRequestHandler):
         parsed = urlparse(self.path)
         if parsed.path == "/api/health":
             self.send_json({"ok": True})
+            return
+        if parsed.path == "/api/current":
+            self.respond_with_current()
             return
         if parsed.path == "/api/load-default":
             default_file = first_existing_excel(DEFAULT_SOURCE_DIR)
@@ -291,7 +404,11 @@ class DashboardHandler(SimpleHTTPRequestHandler):
         return SimpleHTTPRequestHandler.do_GET(self)
 
     def do_POST(self):
-        if urlparse(self.path).path != "/api/upload":
+        path = urlparse(self.path).path
+        if path == "/api/export-filtered":
+            self.respond_with_filtered_export()
+            return
+        if path != "/api/upload":
             self.send_error(HTTPStatus.NOT_FOUND)
             return
 
@@ -339,7 +456,7 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             disposition = header_blob.decode("utf-8", errors="replace")
             name_match = re.search(r'filename="([^"]*)"', disposition)
             filename = Path(name_match.group(1)).name if name_match else "upload.xlsx"
-            file_bytes = content.rstrip(b"\r\n-")
+            file_bytes = content[:-2] if content.endswith(b"\r\n") else content
             break
         if not filename or file_bytes is None:
             self.send_json({"error": "\u6ca1\u6709\u6536\u5230 Excel \u6587\u4ef6\u3002"}, HTTPStatus.BAD_REQUEST)
@@ -350,6 +467,21 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             return
         self.respond_with_workbook(file_bytes, filename)
 
+    def read_json_body(self) -> dict:
+        length = int(self.headers.get("Content-Length", "0"))
+        if length <= 0:
+            return {}
+        return json.loads(self.rfile.read(length).decode("utf-8"))
+
+    def respond_with_current(self):
+        global LATEST_PAYLOAD
+        if LATEST_PAYLOAD is None:
+            LATEST_PAYLOAD = load_current_payload()
+        if not LATEST_PAYLOAD:
+            self.send_json({"error": "\u670d\u52a1\u7aef\u5c1a\u672a\u4e0a\u4f20\u878d\u8d44\u60c5\u51b5\u8868\u3002"}, HTTPStatus.NOT_FOUND)
+            return
+        self.send_json(LATEST_PAYLOAD)
+
     def respond_with_workbook(self, source, source_name: str | None = None):
         global LATEST_PAYLOAD
         try:
@@ -358,6 +490,7 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             self.send_json({"error": f"\u8bfb\u53d6\u5931\u8d25\uff1a{exc}"}, HTTPStatus.BAD_REQUEST)
             return
         LATEST_PAYLOAD = payload
+        save_current_payload(payload)
         self.send_json(payload)
 
     def respond_with_export(self):
@@ -366,6 +499,25 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             return
         data = create_external_detail_workbook(LATEST_PAYLOAD)
         filename = f"\u878d\u8d44\u660e\u7ec6\uff08{datetime.now():%Y%m%d}\uff09.xlsx"
+        encoded = quote(filename)
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        self.send_header("Content-Disposition", f"attachment; filename*=UTF-8''{encoded}")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def respond_with_filtered_export(self):
+        try:
+            payload = self.read_json_body()
+            rows = payload.get("rows", [])
+            if not isinstance(rows, list):
+                raise ValueError("\u7b5b\u9009\u660e\u7ec6\u683c\u5f0f\u4e0d\u6b63\u786e\u3002")
+        except Exception as exc:
+            self.send_json({"error": f"\u5bfc\u51fa\u5931\u8d25\uff1a{exc}"}, HTTPStatus.BAD_REQUEST)
+            return
+        data = create_filtered_detail_workbook(rows)
+        filename = f"\u7b5b\u9009\u878d\u8d44\u660e\u7ec6\uff08{datetime.now():%Y%m%d}\uff09.xlsx"
         encoded = quote(filename)
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -384,6 +536,8 @@ class DashboardHandler(SimpleHTTPRequestHandler):
 
 
 def main():
+    global LATEST_PAYLOAD
+    LATEST_PAYLOAD = load_current_payload()
     host = os.environ.get("FINANCE_DASHBOARD_HOST", "127.0.0.1")
     port = int(os.environ.get("FINANCE_DASHBOARD_PORT", "8780"))
     server = ThreadingHTTPServer((host, port), DashboardHandler)
