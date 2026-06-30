@@ -24,8 +24,23 @@ UPLOAD_DIR = ROOT / "uploads"
 EXPORT_DIR = ROOT / "data"
 PAYLOAD_PATH = EXPORT_DIR / "current_payload.json"
 FALLBACK_PAYLOAD_PATH = Path(r"C:\tmp\corporate-financing-dashboard\current_payload.json")
-DEFAULT_SOURCE_DIR = Path(
-    r"C:\Users\Administrator\Documents\xwechat_files\Oscar19_bb53\temp\RWTemp\2026-05\ec86b6af4ed5d2f92c94c55cff820f25"
+LEGACY_WECHAT_SOURCE_DIR = Path.home().joinpath(
+    "Documents",
+    "xwechat_files",
+    "Oscar19_bb53",
+    "temp",
+    "RWTemp",
+    "2026-05",
+    "ec86b6af4ed5d2f92c94c55cff820f25",
+)
+BOND_PRODUCT_TERMS = (
+    "\u516c\u53f8\u503a",
+    "\u4f01\u4e1a\u503a",
+    "\u503a\u5238",
+    "\u4e2d\u671f\u7968\u636e",
+    "\u503a\u6743\u878d\u8d44\u8ba1\u5212",
+    "\u77ed\u671f\u878d\u8d44\u5238",
+    "\u8d85\u77ed\u671f\u878d\u8d44\u5238",
 )
 
 COL = {
@@ -50,15 +65,35 @@ COL = {
 LATEST_PAYLOAD: dict | None = None
 
 
-def save_current_payload(payload: dict) -> None:
+def configured_default_source_dirs() -> list[Path]:
+    raw = os.environ.get("FINANCE_DASHBOARD_DEFAULT_SOURCE_DIRS") or os.environ.get(
+        "FINANCE_DASHBOARD_DEFAULT_SOURCE_DIR", ""
+    )
+    dirs = [Path(part.strip()) for part in raw.split(os.pathsep) if part.strip()]
+    if not dirs:
+        dirs.append(ROOT / "samples")
+    if LEGACY_WECHAT_SOURCE_DIR.exists() and LEGACY_WECHAT_SOURCE_DIR not in dirs:
+        dirs.append(LEGACY_WECHAT_SOURCE_DIR)
+    return dirs
+
+
+DEFAULT_SOURCE_DIRS = configured_default_source_dirs()
+
+
+def save_current_payload(payload: dict) -> Path | None:
     data = json.dumps(payload, ensure_ascii=False)
+    errors = []
     for path in (PAYLOAD_PATH, FALLBACK_PAYLOAD_PATH):
         try:
-            path.parent.mkdir(exist_ok=True)
+            path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(data, encoding="utf-8")
-            return
-        except OSError:
+            return path
+        except OSError as exc:
+            errors.append(f"{path}: {exc}")
             continue
+    if errors:
+        print("\u4fdd\u5b58\u5f53\u524d\u770b\u677f\u7f13\u5b58\u5931\u8d25\uff1a" + "\uff1b".join(errors), flush=True)
+    return None
 
 
 def load_current_payload() -> dict | None:
@@ -116,6 +151,8 @@ def to_date(value):
 
 
 def first_existing_excel(folder: Path) -> Path | None:
+    if not folder.exists():
+        return None
     files = sorted(folder.glob("*.xlsx"), key=lambda p: p.stat().st_mtime, reverse=True)
     return files[0] if files else None
 
@@ -222,8 +259,7 @@ def parse_workbook(source, source_name: str | None = None) -> dict:
 
 def is_external_detail_row(row: dict) -> bool:
     product = str(row.get("product") or "")
-    excluded_terms = ("\u516c\u53f8\u503a", "\u4f01\u4e1a\u503a", "\u503a\u5238", "\u4e2d\u671f\u7968\u636e")
-    return row.get("balance", 0) > 0 and not any(term in product for term in excluded_terms)
+    return row.get("balance", 0) > 0 and not any(term in product for term in BOND_PRODUCT_TERMS)
 
 
 def create_external_detail_workbook(payload: dict) -> bytes:
@@ -380,9 +416,17 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             self.respond_with_current()
             return
         if parsed.path == "/api/load-default":
-            default_file = first_existing_excel(DEFAULT_SOURCE_DIR)
+            default_file = None
+            for folder in DEFAULT_SOURCE_DIRS:
+                default_file = first_existing_excel(folder)
+                if default_file:
+                    break
             if not default_file:
-                self.send_json({"error": "\u6ca1\u6709\u627e\u5230\u9ed8\u8ba4 Excel \u6587\u4ef6\u3002"}, HTTPStatus.NOT_FOUND)
+                checked = "\u3001".join(str(path) for path in DEFAULT_SOURCE_DIRS)
+                self.send_json(
+                    {"error": "\u6ca1\u6709\u627e\u5230\u9ed8\u8ba4 Excel \u6587\u4ef6\u3002\u5df2\u68c0\u67e5\uff1a" + checked},
+                    HTTPStatus.NOT_FOUND,
+                )
                 return
             self.respond_with_workbook(default_file)
             return

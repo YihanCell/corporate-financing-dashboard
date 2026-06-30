@@ -6,15 +6,46 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
-const { chromium } = require("C:/Users/Administrator/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/.pnpm/playwright@1.61.0/node_modules/playwright");
 const root = path.resolve(__dirname, "..");
 const dataDir = path.join(root, "data");
 const payload = path.join(dataDir, "current_payload.json");
 const backup = path.join(dataDir, "current_payload.json.readme-backup");
 const sample = path.join(root, "samples", "企业融资情况表示例.xlsx");
 const outDir = path.join(root, "docs", "images");
-const python = "C:\\Users\\Administrator\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe";
+const userProfile = process.env.USERPROFILE || "";
+const runtimeRoot = path.join(userProfile, ".cache", "codex-runtimes", "codex-primary-runtime", "dependencies");
+const nodeModuleCandidates = [
+  process.env.FINANCE_DASHBOARD_NODE_MODULES,
+  path.join(root, "node_modules"),
+  path.join(runtimeRoot, "node", "node_modules"),
+].filter(Boolean);
+const pythonCandidates = [
+  process.env.FINANCE_DASHBOARD_PYTHON,
+  path.join(root, ".venv", "Scripts", "python.exe"),
+  path.join(runtimeRoot, "python", "python.exe"),
+  "python",
+].filter(Boolean);
 const port = "8791";
+
+function loadPlaywright() {
+  for (const moduleDir of nodeModuleCandidates) {
+    try {
+      const candidateRequire = existsSync(moduleDir) ? createRequire(path.join(moduleDir, "noop.js")) : require;
+      return candidateRequire("playwright");
+    } catch {}
+  }
+  throw new Error("Playwright was not found. Set FINANCE_DASHBOARD_NODE_MODULES to a node_modules directory.");
+}
+
+function resolvePython() {
+  for (const candidate of pythonCandidates) {
+    if (candidate === "python" || existsSync(candidate)) return candidate;
+  }
+  return "python";
+}
+
+const { chromium } = loadPlaywright();
+const python = resolvePython();
 
 mkdirSync(dataDir, { recursive: true });
 mkdirSync(outDir, { recursive: true });

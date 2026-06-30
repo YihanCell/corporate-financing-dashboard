@@ -11,6 +11,7 @@ if (-not $createdNew) {
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $root = Resolve-Path (Join-Path $scriptDir "..\..")
 $pythonExe = $null
+$pythonDiscoveryMessage = ""
 $port = 8780
 $hostName = "0.0.0.0"
 $localUrl = "http://127.0.0.1:$port"
@@ -20,15 +21,42 @@ $startupFolder = [Environment]::GetFolderPath("Startup")
 $startupLink = Join-Path $startupFolder $startupName
 $launcherPath = Join-Path $root "scripts\windows\start_tray_hidden.vbs"
 
+function Add-PythonCandidate($list, $path) {
+  if ([string]::IsNullOrWhiteSpace($path)) { return }
+  if ((Test-Path $path) -and -not $list.Contains($path)) {
+    [void]$list.Add($path)
+  }
+}
+
+function Test-PythonDependencies($candidate) {
+  try {
+    & $candidate -c "import pandas, openpyxl" *> $null
+    return $LASTEXITCODE -eq 0
+  } catch {
+    return $false
+  }
+}
+
 function Get-PythonExe {
+  $script:pythonDiscoveryMessage = ""
+  $candidates = New-Object System.Collections.ArrayList
+  Add-PythonCandidate $candidates $env:FINANCE_DASHBOARD_PYTHON
+  Add-PythonCandidate $candidates (Join-Path $root ".venv\Scripts\python.exe")
+
   $python = Get-Command python.exe -ErrorAction SilentlyContinue
-  if ($python) { return $python.Source }
+  if ($python) { Add-PythonCandidate $candidates $python.Source }
 
   $pyLauncher = Get-Command py.exe -ErrorAction SilentlyContinue
-  if ($pyLauncher) { return $pyLauncher.Source }
+  if ($pyLauncher) { Add-PythonCandidate $candidates $pyLauncher.Source }
 
-  $codexPython = "C:\Users\Administrator\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe"
-  if (Test-Path $codexPython) { return $codexPython }
+  if ($env:USERPROFILE) {
+    Add-PythonCandidate $candidates (Join-Path $env:USERPROFILE ".cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe")
+  }
+
+  foreach ($candidate in $candidates) {
+    if (Test-PythonDependencies $candidate) { return $candidate }
+    $script:pythonDiscoveryMessage += "`n- $candidate"
+  }
 
   return $null
 }
@@ -76,7 +104,11 @@ function Start-DashboardService {
     $script:pythonExe = Get-PythonExe
   }
   if (-not $script:pythonExe) {
-    [System.Windows.Forms.MessageBox]::Show("Python was not found. Please install Python 3 and run pip install -r requirements.txt.", "Corporate Financing Dashboard") | Out-Null
+    $message = "Python with pandas/openpyxl was not found. Please install Python 3, then run: python -m pip install -r requirements.txt"
+    if ($script:pythonDiscoveryMessage) {
+      $message += "`n`nChecked candidates without required dependencies:" + $script:pythonDiscoveryMessage
+    }
+    [System.Windows.Forms.MessageBox]::Show($message, "Corporate Financing Dashboard") | Out-Null
     return
   }
   $script:serviceStarting = $true
@@ -90,7 +122,12 @@ function Start-DashboardService {
   $psi.EnvironmentVariables["FINANCE_DASHBOARD_HOST"] = $hostName
   $psi.EnvironmentVariables["FINANCE_DASHBOARD_PORT"] = [string]$port
   $psi.EnvironmentVariables["PYTHONUTF8"] = "1"
-  [System.Diagnostics.Process]::Start($psi) | Out-Null
+  try {
+    [System.Diagnostics.Process]::Start($psi) | Out-Null
+  } catch {
+    [System.Windows.Forms.MessageBox]::Show("Dashboard service failed to start: $($_.Exception.Message)", "Corporate Financing Dashboard") | Out-Null
+    $script:serviceStarting = $false
+  }
 }
 
 function Wait-ForServer($timeoutSeconds) {
@@ -215,7 +252,9 @@ $copyLanItem.add_Click({
 })
 $startItem.add_Click({
   Start-DashboardService
-  Wait-ForServer 30 | Out-Null
+  if (-not (Wait-ForServer 30)) {
+    [System.Windows.Forms.MessageBox]::Show("Dashboard service did not become ready. Please check Python dependencies or restart the tray.", "Corporate Financing Dashboard") | Out-Null
+  }
   Update-TrayState
 })
 $restartItem.add_Click({
@@ -258,7 +297,9 @@ $timer.Interval = 5000
 $timer.add_Tick({ Update-TrayState })
 
 Start-DashboardService
-Wait-ForServer 30 | Out-Null
+if (-not (Wait-ForServer 30)) {
+  $notify.ShowBalloonTip(3000, "Corporate Financing Dashboard", "Service did not become ready. Check Python dependencies or restart the tray.", [System.Windows.Forms.ToolTipIcon]::Warning)
+}
 Update-TrayState
 $timer.Start()
 $notify.ShowBalloonTip(1800, "Corporate Financing Dashboard", "Tray started. Right-click the icon to manage the service.", [System.Windows.Forms.ToolTipIcon]::Info)

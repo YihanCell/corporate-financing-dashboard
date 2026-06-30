@@ -96,7 +96,7 @@ http://10.1.30.183:8780
 - 明细筛选：按主体、机构、品种、到期区间、用途和备注筛选，并支持排序、合计
 - 导出：导出对外融资明细，或导出当前筛选后的融资明细
 
-顶部按钮“获取融资明细”用于导出对外提供的融资明细，内容包含融资主体、机构名称、融资品种、贷款余额、到期日期，并会排除公司债、企业债、债券、中期票据等债券类内容。
+顶部按钮“获取融资明细”用于导出对外提供的融资明细，内容包含融资主体、机构名称、融资品种、贷款余额、到期日期，并会排除公司债、企业债、债券、中期票据、债权融资计划、短期融资券、超短期融资券等债券类内容。
 
 明细表右上角“导出当前筛选”用于导出当前页面筛选后的完整明细。导出的 Excel 会包含当前筛选结果，并在最后增加合计行。
 
@@ -135,7 +135,7 @@ http://127.0.0.1:8780
 
 如果同事页面没有变化，让同事刷新浏览器；也要确认他们打开的是当前服务端电脑的局域网地址。
 
-### 找不到 Python
+### 找不到 Python 或提示缺少依赖
 
 换电脑使用时，请安装 Python 3，并在项目目录执行：
 
@@ -143,7 +143,9 @@ http://127.0.0.1:8780
 python -m pip install -r requirements.txt
 ```
 
-如果双击 `start.bat` 后提示找不到 Python，通常是 Python 没有安装，或安装时没有加入系统 `PATH`。安装完成后重新打开终端或重新双击 `start.bat`。
+如果双击 `start.bat` 后提示找不到 Python，通常是 Python 没有安装，或安装时没有加入系统 `PATH`。如果提示找不到 `pandas/openpyxl`，说明 Python 已找到但依赖没有安装，请执行上面的安装命令。安装完成后重新打开终端或重新双击 `start.bat`。
+
+如需指定 Python 路径，可设置环境变量 `FINANCE_DASHBOARD_PYTHON`。
 
 ## 维护者说明
 
@@ -162,6 +164,14 @@ dist/corporate-financing-dashboard-v0.3.2.zip
 ```
 
 这个 zip 可以上传到 GitHub Release，供同事下载解压使用。`dist/` 已被 `.gitignore` 排除，不提交到 GitHub。
+
+### 可选环境变量
+
+- `FINANCE_DASHBOARD_HOST`：服务监听地址，默认 `127.0.0.1`；托盘启动时使用 `0.0.0.0` 便于局域网访问。
+- `FINANCE_DASHBOARD_PORT`：服务端口，默认 `8780`。
+- `FINANCE_DASHBOARD_PYTHON`：指定启动脚本使用的 Python 路径。
+- `FINANCE_DASHBOARD_DEFAULT_SOURCE_DIR` / `FINANCE_DASHBOARD_DEFAULT_SOURCE_DIRS`：指定 `/api/load-default` 检查的默认 Excel 目录；多个目录用系统路径分隔符分隔。
+- `FINANCE_DASHBOARD_NODE_MODULES`：维护者截图脚本使用的 `node_modules` 路径。
 
 ### 文件结构
 

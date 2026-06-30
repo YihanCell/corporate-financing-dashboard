@@ -48,11 +48,13 @@ const els = {
 const today = new Date();
 today.setHours(0, 0, 0, 0);
 
+const bondProductPattern = /公司债|企业债|债券|中期票据|债权融资计划|短期融资券|超短期融资券/;
+
 const rateScopes = {
   all: { label: "全部", matcher: () => true },
   bond: {
     label: "债券",
-    matcher: (row) => /公司债|企业债|债券|中期票据|债权融资计划/.test(row.product || ""),
+    matcher: (row) => bondProductPattern.test(row.product || ""),
   },
   working: { label: "流贷", matcher: (row) => (row.product || "").includes("流贷") },
   fixed: { label: "固贷", matcher: (row) => (row.product || "").includes("固定资产贷款") },
@@ -204,10 +206,25 @@ function filterValueForBucket(label) {
   }[label];
 }
 
+function clearElement(element) {
+  element.textContent = "";
+}
+
+function appendCell(row, text, className = "") {
+  const cell = document.createElement("td");
+  if (className) cell.className = className;
+  cell.textContent = text ?? "";
+  row.appendChild(cell);
+  return cell;
+}
+
 function renderBars(container, data, total, options = {}) {
-  container.innerHTML = "";
+  clearElement(container);
   if (!data.length) {
-    container.innerHTML = '<div class="empty">暂无数据</div>';
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "暂无数据";
+    container.appendChild(empty);
     return;
   }
   for (const item of data) {
@@ -215,11 +232,24 @@ function renderBars(container, data, total, options = {}) {
     const row = document.createElement("div");
     row.className = "bar-row";
     if (item.active) row.classList.add("active");
-    row.innerHTML = `
-      <div class="bar-label" title="${item.label}">${item.label}</div>
-      <div class="bar-track"><div class="bar-fill" style="width:${Math.max(percent, 1)}%"></div></div>
-      <div class="bar-value">${money(item.value)} 万元</div>
-    `;
+
+    const label = document.createElement("div");
+    label.className = "bar-label";
+    label.title = item.label;
+    label.textContent = item.label;
+
+    const track = document.createElement("div");
+    track.className = "bar-track";
+    const fill = document.createElement("div");
+    fill.className = "bar-fill";
+    fill.style.width = `${Math.max(percent, 1)}%`;
+    track.appendChild(fill);
+
+    const value = document.createElement("div");
+    value.className = "bar-value";
+    value.textContent = `${money(item.value)} 万元`;
+
+    row.append(label, track, value);
     if (options.onClick) row.addEventListener("click", () => options.onClick(item));
     container.appendChild(row);
   }
@@ -388,24 +418,35 @@ function dueClass(row) {
 function renderTable() {
   els.tableCount.textContent = `${state.filtered.length} 条`;
   renderTableSummary();
-  els.detailBody.innerHTML = "";
+  clearElement(els.detailBody);
   if (!state.filtered.length) {
-    els.detailBody.innerHTML = '<tr><td colspan="7" class="empty">没有符合条件的数据</td></tr>';
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 7;
+    td.className = "empty";
+    td.textContent = "没有符合条件的数据";
+    tr.appendChild(td);
+    els.detailBody.appendChild(tr);
     return;
   }
 
   const frag = document.createDocumentFragment();
   for (const row of state.filtered) {
     const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${row.borrower}</td>
-      <td>${row.institution}</td>
-      <td><span class="tag">${row.product}</span></td>
-      <td class="number">${money(row.balance)}</td>
-      <td class="number">${rate(row.rate)}</td>
-      <td class="${dueClass(row)}">${dateText(row.maturityDate)}</td>
-      <td>${row.purpose || ""}</td>
-    `;
+    appendCell(tr, row.borrower);
+    appendCell(tr, row.institution);
+
+    const productCell = document.createElement("td");
+    const tag = document.createElement("span");
+    tag.className = "tag";
+    tag.textContent = row.product;
+    productCell.appendChild(tag);
+    tr.appendChild(productCell);
+
+    appendCell(tr, money(row.balance), "number");
+    appendCell(tr, rate(row.rate), "number");
+    appendCell(tr, dateText(row.maturityDate), dueClass(row));
+    appendCell(tr, row.purpose || "");
     frag.appendChild(tr);
   }
   els.detailBody.appendChild(frag);
@@ -428,7 +469,11 @@ function fillFilter(select, rows, key, label) {
   const values = [...new Set(rows.map((row) => row[key] || "未填写"))].sort((a, b) =>
     a.localeCompare(b, "zh-CN")
   );
-  select.innerHTML = `<option value="all">全部${label}</option>`;
+  clearElement(select);
+  const allOption = document.createElement("option");
+  allOption.value = "all";
+  allOption.textContent = `全部${label}`;
+  select.appendChild(allOption);
   for (const value of values) {
     const option = document.createElement("option");
     option.value = value;
