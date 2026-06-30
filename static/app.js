@@ -4,6 +4,7 @@ const state = {
   sortKey: "balance",
   sortDir: "desc",
   rateBucket: "all",
+  maturityFilter: "all",
   loaded: false,
 };
 
@@ -65,6 +66,36 @@ const rateScopes = {
     return years !== null && years > 3;
   } },
 };
+
+const maturityOptions = [
+  ["all", "全部到期"],
+  ["overdue", "已到期"],
+  ["7", "7天内"],
+  ["30", "30天内"],
+  ["bucket-30", "8-30天"],
+  ["60", "60天内"],
+  ["bucket-60", "31-60天"],
+  ["90", "90天内"],
+  ["bucket-90", "61-90天"],
+  ["bucket-180", "91-180天"],
+  ["bucket-365", "181-365天"],
+  ["365", "一年内"],
+  ["long", "一年后"],
+  ["no-date", "未填到期日"],
+];
+
+function ensureMaturityOptions() {
+  const current = state.maturityFilter || els.maturityFilter.value || "all";
+  const existing = new Set([...els.maturityFilter.options].map((option) => option.value));
+  for (const [value, label] of maturityOptions) {
+    if (existing.has(value)) continue;
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    els.maturityFilter.appendChild(option);
+  }
+  els.maturityFilter.value = existing.has(current) || maturityOptions.some(([value]) => value === current) ? current : "all";
+}
 
 function money(value) {
   return Number(value || 0).toLocaleString("zh-CN", { maximumFractionDigits: 2 });
@@ -225,13 +256,15 @@ function renderSummary(rows) {
       label,
       value: sum(rows.filter((row) => maturityBucket(row) === label)),
       filterValue: filterValueForBucket(label),
-      active: els.maturityFilter.value === filterValueForBucket(label),
+      active: state.maturityFilter === filterValueForBucket(label),
     }))
     .filter((item) => item.value > 0);
   renderBars(els.maturityBars, byMaturity, total, {
     onClick: (item) => {
       if (!item.filterValue) return;
-      els.maturityFilter.value = els.maturityFilter.value === item.filterValue ? "all" : item.filterValue;
+      state.maturityFilter = state.maturityFilter === item.filterValue ? "all" : item.filterValue;
+      ensureMaturityOptions();
+      els.maturityFilter.value = state.maturityFilter;
       applyFilters();
       document.querySelector(".table-wrap")?.scrollIntoView({ behavior: "smooth", block: "start" });
     },
@@ -260,12 +293,14 @@ function renderSummary(rows) {
   });
   const byNearTermProduct = groupBy(nearTermRows, "product").map((item) => ({
     ...item,
-    active: els.productFilter.value === item.label && els.maturityFilter.value === "365",
+    active: els.productFilter.value === item.label && state.maturityFilter === "365",
   }));
   renderBars(els.nearTermProductBars, byNearTermProduct, sum(nearTermRows), {
     onClick: (item) => {
       els.productFilter.value = els.productFilter.value === item.label ? "all" : item.label;
-      els.maturityFilter.value = "365";
+      state.maturityFilter = "365";
+      ensureMaturityOptions();
+      els.maturityFilter.value = state.maturityFilter;
       applyFilters();
       document.querySelector(".table-wrap")?.scrollIntoView({ behavior: "smooth", block: "start" });
     },
@@ -308,7 +343,7 @@ function applyFilters() {
   const borrower = els.borrowerFilter.value;
   const institution = els.institutionFilter.value;
   const product = els.productFilter.value;
-  const maturity = els.maturityFilter.value;
+  const maturity = state.maturityFilter;
 
   state.filtered = state.rows.filter((row) => {
     const haystack = [row.borrower, row.institution, row.product, row.purpose, row.notes]
@@ -462,6 +497,8 @@ function resetFilters(shouldApply = true) {
   els.borrowerFilter.value = "all";
   els.institutionFilter.value = "all";
   els.productFilter.value = "all";
+  state.maturityFilter = "all";
+  ensureMaturityOptions();
   els.maturityFilter.value = "all";
   state.rateBucket = "all";
   if (shouldApply) applyFilters();
@@ -548,7 +585,10 @@ els.searchInput.addEventListener("input", applyFilters);
 els.borrowerFilter.addEventListener("change", applyFilters);
 els.institutionFilter.addEventListener("change", applyFilters);
 els.productFilter.addEventListener("change", applyFilters);
-els.maturityFilter.addEventListener("change", applyFilters);
+els.maturityFilter.addEventListener("change", () => {
+  state.maturityFilter = els.maturityFilter.value || "all";
+  applyFilters();
+});
 els.rateScope.addEventListener("change", () => renderSummary(state.filtered));
 els.resetFilters.addEventListener("click", () => resetFilters());
 els.exportButton.addEventListener("click", exportDetails);
@@ -568,6 +608,8 @@ document.querySelectorAll("th[data-sort]").forEach((th) => {
     applyFilters();
   });
 });
+
+ensureMaturityOptions();
 
 if (new URLSearchParams(location.search).get("sample") === "1") {
   loadDefaultForTest();

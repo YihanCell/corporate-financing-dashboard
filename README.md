@@ -4,7 +4,37 @@
 
 ## 一、启动方式
 
-### 1. 局域网共享模式（推荐）
+### 1. 托盘模式（推荐）
+
+在服务端电脑双击：
+
+```bat
+start_tray.bat
+```
+
+启动后，右下角状态栏会出现 `Finance Dashboard` 图标。右键图标可以：
+
+- 查看服务是否运行
+- 启动服务
+- 停止服务
+- 重启服务
+- 打开本机看盘
+- 打开局域网看盘
+- 复制局域网地址
+- 开启或关闭开机自启
+- 查看当前设置
+
+托盘模式会自动启动局域网服务，同事在同一局域网内打开地址即可查看看盘。
+
+也可以双击中文入口：
+
+```bat
+启动融资看盘托盘.bat
+```
+
+中文入口只是转发到 `start_tray.vbs`。如果 Windows 对中文脚本名处理异常，优先使用 `start_tray.bat`。
+
+### 2. 局域网共享模式（简易入口）
 
 在服务端电脑双击：
 
@@ -20,6 +50,8 @@ http://10.1.30.183:8780
 
 同事在同一局域网内打开这个地址即可查看看盘。
 
+局域网共享时只需要启动这一个脚本，不需要先打开 `start_dashboard.bat`。
+
 如果同事无法访问，先在服务端电脑双击：
 
 ```bat
@@ -28,7 +60,7 @@ http://10.1.30.183:8780
 
 它会尝试放行 Windows 防火墙的 `8780` 端口。这个脚本可能需要管理员权限。
 
-### 2. 本机查看模式
+### 3. 本机查看模式
 
 只在服务端电脑自己看时，双击：
 
@@ -42,7 +74,7 @@ start_dashboard.bat
 http://127.0.0.1:8780
 ```
 
-### 3. 停止服务
+### 4. 停止服务
 
 需要停止当前看盘服务时，双击：
 
@@ -54,6 +86,20 @@ stop_dashboard.bat
 
 ## 二、脚本启动顺序
 
+### 托盘启动：`start_tray.bat`
+
+执行顺序如下：
+
+1. 调用 `start_tray.vbs`。
+2. 隐藏启动 `finance_dashboard_tray.ps1`。
+3. 在右下角状态栏创建托盘图标。
+4. 自动启动融资看盘服务。
+5. 最多等待 30 秒确认服务启动。
+6. 每 5 秒检查一次服务状态。
+7. 可在托盘菜单里设置开机自启。
+
+托盘脚本 `finance_dashboard_tray.ps1` 使用英文菜单文本，避免 Windows PowerShell 在不同系统编码下把中文脚本内容读成乱码。
+
 ### 局域网启动：`start_lan_dashboard.bat`
 
 执行顺序如下：
@@ -64,7 +110,7 @@ stop_dashboard.bat
    - `FINANCE_DASHBOARD_PORT=8780`
    - `PYTHONUTF8=1`
 3. 检查 `8780` 端口是否已有旧服务占用，如有则尝试关闭。
-4. 调用 `run_dashboard_server.bat` 启动后台服务。
+4. 通过 PowerShell 隐藏启动后台服务。
 5. 等待服务可访问，确认页面包含 `GROUP TREASURY MONITOR`。
 6. 弹出局域网访问地址。
 7. 自动打开本机浏览器页面。
@@ -75,17 +121,19 @@ stop_dashboard.bat
 
 1. 切换到项目目录。
 2. 设置服务参数：
-   - `FINANCE_DASHBOARD_HOST=0.0.0.0`
+   - `FINANCE_DASHBOARD_HOST=127.0.0.1`
    - `FINANCE_DASHBOARD_PORT=8780`
    - `PYTHONUTF8=1`
 3. 检查并清理 `8780` 端口上的旧服务。
-4. 调用 `run_dashboard_server.bat` 启动后台服务。
+4. 通过 PowerShell 隐藏启动后台服务。
 5. 等待服务可访问。
 6. 自动打开 `http://127.0.0.1:8780`。
 
-### 实际服务启动：`run_dashboard_server.bat`
+### 调试启动：`run_dashboard_server.bat`
 
-这个脚本是真正启动 Python 服务的脚本。它会：
+这个脚本用于调试或排查问题。正常使用时不用手动打开它，直接打开 `start_lan_dashboard.bat` 或 `start_dashboard.bat` 即可。
+
+它会：
 
 1. 切换到项目目录。
 2. 设置 UTF-8 环境，避免中文路径和中文文件名乱码。
@@ -107,7 +155,7 @@ python server.py
 server-runtime.log
 ```
 
-如果换电脑部署，需要确认 `run_dashboard_server.bat` 里的 Python 路径存在；如果不存在，需要改成那台电脑可用的 Python 路径，并确保已安装 `pandas` 和 `openpyxl`。
+如果换电脑部署，需要确认启动脚本里的 Python 路径存在；如果不存在，需要改成那台电脑可用的 Python 路径，并确保已安装 `pandas` 和 `openpyxl`。
 
 ## 三、日常操作流程
 
@@ -250,7 +298,17 @@ http://127.0.0.1:8780
 stop_dashboard.bat
 ```
 
-然后重新启动 `start_lan_dashboard.bat`。
+然后重新启动 `start_tray.bat`。
+
+### 5. 双击托盘入口没有反应
+
+优先使用英文入口：
+
+```bat
+start_tray.bat
+```
+
+如果仍然没有托盘图标，可以打开任务管理器确认是否已有 `powershell.exe` 托盘进程；也可以先运行 `stop_dashboard.bat`，再重新启动托盘。
 
 ## 八、开发说明
 
@@ -263,7 +321,12 @@ static/styles.css      页面样式
 static/app.js          前端交互、筛选、图表联动
 start_lan_dashboard.bat 局域网启动入口
 start_dashboard.bat    本机启动入口
-run_dashboard_server.bat 实际服务启动脚本
+start_tray.bat         托盘启动入口（推荐）
+start_tray.vbs         隐藏启动托盘
+启动融资看盘托盘.bat 中文托盘启动入口
+启动融资看盘托盘.vbs 中文兼容入口
+finance_dashboard_tray.ps1 托盘控制器
+run_dashboard_server.bat 调试/备用启动脚本
 stop_dashboard.bat     停止服务
 ```
 
