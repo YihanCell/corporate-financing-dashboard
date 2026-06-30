@@ -4,6 +4,7 @@ __pycache__/
 
 uploads/
 data/
+dist/
 
 portable/
 *.tmp

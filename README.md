@@ -1,185 +1,115 @@
 # 集团融资看盘
 
-这是一个用于集团融资管理的数据看盘工具。管理员在服务端上传最新的“集团公司融资情况表”后，同一局域网内的同事打开浏览器地址即可查看当前融资余额、到期压力、融资品种结构、利率分层、主体集中度和融资明细。
+一个面向集团融资管理的本地/局域网看盘工具。管理员在服务端上传最新“集团公司融资情况表”后，同一局域网内的同事打开浏览器地址即可查看融资余额、期限压力、融资品种结构、利率成本和融资明细。
 
-## 一、启动方式
+> 适合场景：融资台账由人工维护，团队希望有一个低门槛、可局域网共享、数据不上传外网的看盘页面。
 
-### 1. 托盘模式（推荐）
+![集团融资看盘示例](docs/images/dashboard-sample.png)
 
-在服务端电脑双击：
+## 先看这个
+
+- 数据不会提交到 GitHub，运行数据位于 `data/`、`uploads/`，已被 `.gitignore` 排除。
+- 示例 Excel 位于 [samples/集团公司融资情况表示例.xlsx](samples/集团公司融资情况表示例.xlsx)，里面是虚构数据，仅用于演示字段格式。
+- 推荐入口是 `start_tray.bat`，启动后会在 Windows 右下角显示托盘图标。
+- 服务默认端口是 `8780`，局域网访问格式是 `http://服务端电脑IP:8780`。
+
+## 下载安装
+
+### GitHub Release 用户
+
+1. 在 GitHub Releases 页面下载 `finance-dashboard-版本号.zip`。
+2. 解压到服务端电脑的任意目录。
+3. 双击 `start_tray.bat`。
+4. 右键右下角 `Finance Dashboard` 托盘图标，打开局域网地址或复制局域网地址。
+5. 在页面右上角“导入台账”上传最新融资情况表。
+
+### 从源码运行
+
+如果是从源码克隆：
+
+```bat
+git clone https://github.com/YihanCell/finance-dashboard.git
+cd finance-dashboard
+pip install -r requirements.txt
+start_tray.bat
+```
+
+本项目当前的 `.bat` 默认使用本机 Codex runtime 的 Python 路径。如果换电脑运行，请确认 `start_dashboard.bat`、`start_lan_dashboard.bat`、`finance_dashboard_tray.ps1` 中的 Python 路径存在；如果不存在，改为那台电脑实际可用的 Python 路径。
+
+## 最快使用方式
+
+### 1. 启动托盘
+
+双击：
 
 ```bat
 start_tray.bat
 ```
 
-启动后，右下角状态栏会出现 `Finance Dashboard` 图标。右键图标可以：
+右下角会出现 `Finance Dashboard` 托盘图标。右键图标可以：
 
-- 查看服务是否运行
+- 查看服务状态
 - 启动服务
 - 停止服务
 - 重启服务
 - 打开本机看盘
 - 打开局域网看盘
 - 复制局域网地址
-- 开启或关闭开机自启
+- 开启/关闭开机自启
 - 查看当前设置
 
-托盘模式会自动启动局域网服务，同事在同一局域网内打开地址即可查看看盘。
-
-也可以双击中文入口：
+也保留了中文入口：
 
 ```bat
 启动融资看盘托盘.bat
 ```
 
-中文入口只是转发到 `start_tray.vbs`。如果 Windows 对中文脚本名处理异常，优先使用 `start_tray.bat`。
+如果 Windows 对中文脚本名处理异常，优先使用 `start_tray.bat`。
 
-### 2. 局域网共享模式（简易入口）
+### 2. 上传融资情况表
 
-在服务端电脑双击：
+在服务端电脑打开页面后，点击右上角“导入台账”，上传最新的“集团公司融资情况表”。
 
-```bat
-start_lan_dashboard.bat
+系统会读取 Excel 的第二个工作表，一般名称类似：
+
+```text
+截至2026年6月30日
 ```
 
-启动成功后，会弹出局域网访问地址，例如：
+这个工作表至少需要包含以下字段：
+
+```text
+融资主体
+机构名称
+融资品种
+贷款余额（万元）
+到期日期
+```
+
+### 3. 发给同事访问
+
+服务端上传一次后，同事不需要再上传 Excel。直接打开局域网地址即可，例如：
 
 ```text
 http://10.1.30.183:8780
 ```
 
-同事在同一局域网内打开这个地址即可查看看盘。
+## 示例数据
 
-局域网共享时只需要启动这一个脚本，不需要先打开 `start_dashboard.bat`。
+仓库提供了一个可直接导入的示例表：
 
-如果同事无法访问，先在服务端电脑双击：
+[samples/集团公司融资情况表示例.xlsx](samples/集团公司融资情况表示例.xlsx)
 
-```bat
-开放局域网访问_8780.bat
-```
+示例表包含：
 
-它会尝试放行 Windows 防火墙的 `8780` 端口。这个脚本可能需要管理员权限。
+- 流贷、固贷、项目贷款、银团贷款
+- 公司债、中期票据
+- 7天内、8-30天、31-60天、61-90天、91-180天、181-365天、一年后等到期区间
+- 不同利率区间和不同融资主体
 
-### 3. 本机查看模式
+这份表只是为了演示字段结构和看盘效果，不包含真实业务数据。
 
-只在服务端电脑自己看时，双击：
-
-```bat
-start_dashboard.bat
-```
-
-浏览器会自动打开：
-
-```text
-http://127.0.0.1:8780
-```
-
-### 4. 停止服务
-
-需要停止当前看盘服务时，双击：
-
-```bat
-stop_dashboard.bat
-```
-
-它会关闭占用 `8780` 端口的看盘服务。
-
-## 二、脚本启动顺序
-
-### 托盘启动：`start_tray.bat`
-
-执行顺序如下：
-
-1. 调用 `start_tray.vbs`。
-2. 隐藏启动 `finance_dashboard_tray.ps1`。
-3. 在右下角状态栏创建托盘图标。
-4. 自动启动融资看盘服务。
-5. 最多等待 30 秒确认服务启动。
-6. 每 5 秒检查一次服务状态。
-7. 可在托盘菜单里设置开机自启。
-
-托盘脚本 `finance_dashboard_tray.ps1` 使用英文菜单文本，避免 Windows PowerShell 在不同系统编码下把中文脚本内容读成乱码。
-
-### 局域网启动：`start_lan_dashboard.bat`
-
-执行顺序如下：
-
-1. 切换到项目目录。
-2. 设置服务参数：
-   - `FINANCE_DASHBOARD_HOST=0.0.0.0`
-   - `FINANCE_DASHBOARD_PORT=8780`
-   - `PYTHONUTF8=1`
-3. 检查 `8780` 端口是否已有旧服务占用，如有则尝试关闭。
-4. 通过 PowerShell 隐藏启动后台服务。
-5. 等待服务可访问，确认页面包含 `GROUP TREASURY MONITOR`。
-6. 弹出局域网访问地址。
-7. 自动打开本机浏览器页面。
-
-### 本机启动：`start_dashboard.bat`
-
-执行顺序如下：
-
-1. 切换到项目目录。
-2. 设置服务参数：
-   - `FINANCE_DASHBOARD_HOST=127.0.0.1`
-   - `FINANCE_DASHBOARD_PORT=8780`
-   - `PYTHONUTF8=1`
-3. 检查并清理 `8780` 端口上的旧服务。
-4. 通过 PowerShell 隐藏启动后台服务。
-5. 等待服务可访问。
-6. 自动打开 `http://127.0.0.1:8780`。
-
-### 调试启动：`run_dashboard_server.bat`
-
-这个脚本用于调试或排查问题。正常使用时不用手动打开它，直接打开 `start_lan_dashboard.bat` 或 `start_dashboard.bat` 即可。
-
-它会：
-
-1. 切换到项目目录。
-2. 设置 UTF-8 环境，避免中文路径和中文文件名乱码。
-3. 默认使用：
-
-```text
-C:\Users\Administrator\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe
-```
-
-4. 执行：
-
-```bat
-python server.py
-```
-
-5. 将服务运行日志写入：
-
-```text
-server-runtime.log
-```
-
-如果换电脑部署，需要确认启动脚本里的 Python 路径存在；如果不存在，需要改成那台电脑可用的 Python 路径，并确保已安装 `pandas` 和 `openpyxl`。
-
-## 三、日常操作流程
-
-### 管理员更新数据
-
-1. 在服务端电脑打开看盘页面。
-2. 点击右上角“导入台账”，或把最新的“集团公司融资情况表”拖入页面。
-3. 系统会读取 Excel 的第二个工作表，一般名称类似“截至XXXX年XX月XX日”。
-4. 上传成功后，页面会刷新看盘数据。
-5. 同事刷新局域网页面后，即可看到最新数据。
-
-当前版本的逻辑是：管理员上传一次，服务端会保存当前看盘数据；同事不需要再上传 Excel。
-
-### 同事查看数据
-
-同事只需要打开局域网地址，例如：
-
-```text
-http://10.1.30.183:8780
-```
-
-如果服务端已经上传过最新融资情况表，同事打开页面后会直接看到看盘。
-
-## 四、主要功能
+## 功能概览
 
 - 当前融资余额
 - 融资笔数
@@ -205,11 +135,11 @@ http://10.1.30.183:8780
 - 融资品种结构
 - 一年内到期品种
 - 主体集中度 TOP10
-- 融资明细筛选、排序、合计
+- 明细筛选、排序、合计
 - 导出对外融资明细
 - 导出当前筛选后的融资明细
 
-## 五、导出说明
+## 导出说明
 
 ### 获取融资明细
 
@@ -227,21 +157,56 @@ http://10.1.30.183:8780
 
 ### 导出当前筛选
 
-明细表右上角“导出当前筛选”用于导出当前页面筛选后的完整明细。
+明细表右上角“导出当前筛选”用于导出当前页面筛选后的完整明细。导出的 Excel 会包含当前筛选结果，并在最后增加合计行。
 
-导出的 Excel 会包含当前筛选结果，并在最后增加合计行。
+## 启动脚本说明
 
-## 六、数据与代码分离
+### 推荐入口：`start_tray.bat`
 
-融资情况表不会提交到 GitHub。
+执行顺序：
 
-以下目录和文件建议继续保持在 `.gitignore` 中：
+1. 调用 `start_tray.vbs`。
+2. 隐藏启动 `finance_dashboard_tray.ps1`。
+3. 创建 Windows 托盘图标。
+4. 自动启动融资看盘服务。
+5. 最多等待 30 秒确认服务启动。
+6. 每 5 秒检查一次服务状态。
+7. 可在托盘菜单中设置开机自启。
+
+托盘脚本使用英文菜单文本，避免 Windows PowerShell 在不同系统编码下把中文脚本内容读成乱码。
+
+### 简易局域网入口：`start_lan_dashboard.bat`
+
+适合不使用托盘时临时启动。它会：
+
+1. 设置 `FINANCE_DASHBOARD_HOST=0.0.0.0`。
+2. 设置 `FINANCE_DASHBOARD_PORT=8780`。
+3. 清理占用 `8780` 的旧服务。
+4. 隐藏启动后台服务。
+5. 弹出局域网访问地址。
+
+### 本机入口：`start_dashboard.bat`
+
+仅在服务端电脑自己查看时使用。它会绑定：
+
+```text
+127.0.0.1:8780
+```
+
+### 停止服务：`stop_dashboard.bat`
+
+用于关闭占用 `8780` 端口的看盘服务。
+
+## 数据与代码分离
+
+以下运行数据不会提交到 GitHub：
 
 ```text
 uploads/
 data/
 *.log
 __pycache__/
+dist/
 ```
 
 当前看盘数据会优先保存到：
@@ -256,11 +221,25 @@ data/current_payload.json
 C:\tmp\finance-dashboard\current_payload.json
 ```
 
-这些都是运行时数据，不需要上传到 GitHub。
+## 发布打包
 
-## 七、常见问题
+维护者可以用脚本生成 Release zip：
 
-### 1. 同事打不开局域网地址
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/package_release.ps1 -Version v0.3.0
+```
+
+输出文件：
+
+```text
+dist/finance-dashboard-v0.3.0.zip
+```
+
+这个 zip 可以上传到 GitHub Release，供同事下载解压使用。
+
+## 常见问题
+
+### 同事打不开局域网地址
 
 先确认服务端电脑能打开：
 
@@ -274,33 +253,15 @@ http://127.0.0.1:8780
 2. 确认同事和服务端电脑在同一局域网。
 3. 确认同事访问的是服务端当前 IP，例如 `http://10.1.30.183:8780`。
 
-### 2. 页面显示尚未上传数据
+### 页面显示尚未上传数据
 
 说明服务端还没有当前融资情况表缓存。管理员在服务端页面上传一次最新融资情况表即可。
 
-### 3. 上传后没有变化
+### 上传后没有变化
 
-请确认上传的是“集团公司融资情况表”，并且第二个工作表包含以下字段：
+请确认上传的是“集团公司融资情况表”，并且第二个工作表字段符合示例表结构。可以先用 [samples/集团公司融资情况表示例.xlsx](samples/集团公司融资情况表示例.xlsx) 测试。
 
-```text
-融资主体
-机构名称
-融资品种
-贷款余额（万元）
-到期日期
-```
-
-### 4. 端口被占用
-
-双击：
-
-```bat
-stop_dashboard.bat
-```
-
-然后重新启动 `start_tray.bat`。
-
-### 5. 双击托盘入口没有反应
+### 双击托盘入口没有反应
 
 优先使用英文入口：
 
@@ -310,40 +271,20 @@ start_tray.bat
 
 如果仍然没有托盘图标，可以打开任务管理器确认是否已有 `powershell.exe` 托盘进程；也可以先运行 `stop_dashboard.bat`，再重新启动托盘。
 
-## 八、开发说明
-
-项目主要文件：
+## 主要文件
 
 ```text
-server.py              后端服务、Excel 解析、导出接口
-static/index.html      页面结构
-static/styles.css      页面样式
-static/app.js          前端交互、筛选、图表联动
-start_lan_dashboard.bat 局域网启动入口
-start_dashboard.bat    本机启动入口
-start_tray.bat         托盘启动入口（推荐）
-start_tray.vbs         隐藏启动托盘
-启动融资看盘托盘.bat 中文托盘启动入口
-启动融资看盘托盘.vbs 中文兼容入口
-finance_dashboard_tray.ps1 托盘控制器
-run_dashboard_server.bat 调试/备用启动脚本
-stop_dashboard.bat     停止服务
-```
-
-服务默认端口：
-
-```text
-8780
-```
-
-本机地址：
-
-```text
-http://127.0.0.1:8780
-```
-
-局域网地址格式：
-
-```text
-http://服务端电脑IP:8780
+server.py                    后端服务、Excel 解析、导出接口
+static/index.html            页面结构
+static/styles.css            页面样式
+static/app.js                前端交互、筛选、图表联动
+samples/集团公司融资情况表示例.xlsx 示例融资情况表
+docs/images/dashboard-sample.png README 截图
+start_tray.bat               托盘启动入口（推荐）
+start_tray.vbs               隐藏启动托盘
+finance_dashboard_tray.ps1   托盘控制器
+start_lan_dashboard.bat      局域网简易启动入口
+start_dashboard.bat          本机启动入口
+stop_dashboard.bat           停止服务
+scripts/package_release.ps1  Release 打包脚本
 ```
