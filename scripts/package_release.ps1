@@ -6,8 +6,8 @@ $ErrorActionPreference = "Stop"
 
 $Root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $Dist = Join-Path $Root "dist"
-$PackageRoot = Join-Path $Dist "treasury-finance-monitor-$Version"
-$ZipPath = Join-Path $Dist "treasury-finance-monitor-$Version.zip"
+$PackageRoot = Join-Path $Dist "corporate-financing-dashboard-$Version"
+$ZipPath = Join-Path $Dist "corporate-financing-dashboard-$Version.zip"
 
 if (Test-Path $PackageRoot) {
   Remove-Item -LiteralPath $PackageRoot -Recurse -Force
@@ -18,16 +18,8 @@ $items = @(
   "README.md",
   "requirements.txt",
   "server.py",
-  "run_dashboard_server.bat",
-  "start_dashboard.bat",
-  "start_lan_dashboard.bat",
-  "start_tray.bat",
-  "start_tray.vbs",
-  "stop_dashboard.bat",
-  "finance_dashboard_tray.ps1",
-  "开放局域网访问_8780.bat",
-  "启动融资看盘托盘.bat",
-  "启动融资看盘托盘.vbs",
+  "start.bat",
+  "stop.bat",
   "static",
   "samples",
   "docs",

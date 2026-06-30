@@ -23,7 +23,7 @@ STATIC_DIR = ROOT / "static"
 UPLOAD_DIR = ROOT / "uploads"
 EXPORT_DIR = ROOT / "data"
 PAYLOAD_PATH = EXPORT_DIR / "current_payload.json"
-FALLBACK_PAYLOAD_PATH = Path(r"C:\tmp\finance-dashboard\current_payload.json")
+FALLBACK_PAYLOAD_PATH = Path(r"C:\tmp\corporate-financing-dashboard\current_payload.json")
 DEFAULT_SOURCE_DIR = Path(
     r"C:\Users\Administrator\Documents\xwechat_files\Oscar19_bb53\temp\RWTemp\2026-05\ec86b6af4ed5d2f92c94c55cff820f25"
 )

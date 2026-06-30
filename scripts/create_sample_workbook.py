@@ -6,7 +6,7 @@ from openpyxl.utils import get_column_letter
 
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "samples" / "集团公司融资情况表示例.xlsx"
+OUT = ROOT / "samples" / "企业融资情况表示例.xlsx"
 
 
 def main() -> None:
