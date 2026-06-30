@@ -1,10 +1,14 @@
-# 集团融资看盘
+# 司库融资看板
 
-一个面向集团融资管理的本地/局域网看盘工具。管理员在服务端上传最新“集团公司融资情况表”后，同一局域网内的同事打开浏览器地址即可查看融资余额、期限压力、融资品种结构、利率成本和融资明细。
+一个面向集团司库和融资管理的本地/局域网看板工具。管理员在服务端上传最新“集团公司融资情况表”后，同一局域网内的同事打开浏览器地址即可查看融资余额、期限压力、融资品种结构、利率成本和融资明细。
 
 > 适合场景：融资台账由人工维护，团队希望有一个低门槛、可局域网共享、数据不上传外网的看盘页面。
 
-![集团融资看盘示例](docs/images/dashboard-sample.png)
+![司库融资看板示例](docs/images/dashboard-sample.png)
+
+## About
+
+司库融资看板是一个轻量级的集团融资管理工具。它把人工维护的 Excel 融资台账转成浏览器里的实时看板，用于快速查看融资余额、到期压力、融资成本、品种结构和明细筛选结果。项目默认在本机或局域网内运行，业务数据只保存在服务端电脑，不需要上传到外部平台。
 
 ## 先看这个
 
@@ -17,10 +21,10 @@
 
 ### GitHub Release 用户
 
-1. 在 GitHub Releases 页面下载 `finance-dashboard-版本号.zip`。
+1. 在 GitHub Releases 页面下载 `treasury-finance-monitor-版本号.zip`。
 2. 解压到服务端电脑的任意目录。
 3. 双击 `start_tray.bat`。
-4. 右键右下角 `Finance Dashboard` 托盘图标，打开局域网地址或复制局域网地址。
+4. 右键右下角 `Treasury Finance Monitor` 托盘图标，打开局域网地址或复制局域网地址。
 5. 在页面右上角“导入台账”上传最新融资情况表。
 
 ### 从源码运行
@@ -28,8 +32,8 @@
 如果是从源码克隆：
 
 ```bat
-git clone https://github.com/YihanCell/finance-dashboard.git
-cd finance-dashboard
+git clone https://github.com/YihanCell/treasury-finance-monitor.git
+cd treasury-finance-monitor
 pip install -r requirements.txt
 start_tray.bat
 ```
@@ -46,7 +50,7 @@ start_tray.bat
 start_tray.bat
 ```
 
-右下角会出现 `Finance Dashboard` 托盘图标。右键图标可以：
+右下角会出现 `Treasury Finance Monitor` 托盘图标。右键图标可以：
 
 - 查看服务状态
 - 启动服务
@@ -168,7 +172,7 @@ http://10.1.30.183:8780
 1. 调用 `start_tray.vbs`。
 2. 隐藏启动 `finance_dashboard_tray.ps1`。
 3. 创建 Windows 托盘图标。
-4. 自动启动融资看盘服务。
+4. 自动启动司库融资看板服务。
 5. 最多等待 30 秒确认服务启动。
 6. 每 5 秒检查一次服务状态。
 7. 可在托盘菜单中设置开机自启。
@@ -226,13 +230,13 @@ C:\tmp\finance-dashboard\current_payload.json
 维护者可以用脚本生成 Release zip：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/package_release.ps1 -Version v0.3.0
+powershell -ExecutionPolicy Bypass -File scripts/package_release.ps1 -Version v0.3.1
 ```
 
 输出文件：
 
 ```text
-dist/finance-dashboard-v0.3.0.zip
+dist/treasury-finance-monitor-v0.3.1.zip
 ```
 
 这个 zip 可以上传到 GitHub Release，供同事下载解压使用。

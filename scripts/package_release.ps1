@@ -6,8 +6,8 @@ $ErrorActionPreference = "Stop"
 
 $Root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $Dist = Join-Path $Root "dist"
-$PackageRoot = Join-Path $Dist "finance-dashboard-$Version"
-$ZipPath = Join-Path $Dist "finance-dashboard-$Version.zip"
+$PackageRoot = Join-Path $Dist "treasury-finance-monitor-$Version"
+$ZipPath = Join-Path $Dist "treasury-finance-monitor-$Version.zip"
 
 if (Test-Path $PackageRoot) {
   Remove-Item -LiteralPath $PackageRoot -Recurse -Force

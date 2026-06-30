@@ -4,7 +4,7 @@ Add-Type -AssemblyName System.Drawing
 $createdNew = $false
 $mutex = New-Object System.Threading.Mutex($true, "GroupFinanceDashboardTray", [ref]$createdNew)
 if (-not $createdNew) {
-  [System.Windows.Forms.MessageBox]::Show("Finance dashboard tray is already running.", "Finance Dashboard") | Out-Null
+  [System.Windows.Forms.MessageBox]::Show("Treasury Finance Monitor tray is already running.", "Treasury Finance Monitor") | Out-Null
   return
 }
 
@@ -14,7 +14,7 @@ $port = 8780
 $hostName = "0.0.0.0"
 $localUrl = "http://127.0.0.1:$port"
 $serviceStarting = $false
-$startupName = "Group Finance Dashboard Tray.lnk"
+$startupName = "Treasury Finance Monitor Tray.lnk"
 $startupFolder = [Environment]::GetFolderPath("Startup")
 $startupLink = Join-Path $startupFolder $startupName
 $launcherPath = Join-Path $root "start_tray.vbs"
@@ -105,7 +105,7 @@ function Enable-Autostart {
   $shortcut.Arguments = """" + $launcherPath + """"
   $shortcut.WorkingDirectory = $root
   $shortcut.IconLocation = "$env:SystemRoot\System32\shell32.dll,17"
-  $shortcut.Description = "Start Group Finance Dashboard tray"
+  $shortcut.Description = "Start Treasury Finance Monitor tray"
   $shortcut.Save()
 }
 
@@ -129,7 +129,7 @@ function Update-TrayState {
   if ($running) {
     $script:serviceStarting = $false
     $notify.Icon = [System.Drawing.SystemIcons]::Information
-    $notify.Text = "Finance Dashboard: running $lanUrl"
+    $notify.Text = "Treasury Finance Monitor: running $lanUrl"
     $statusItem.Text = "Status: running"
     $openLocalItem.Enabled = $true
     $openLanItem.Enabled = $true
@@ -138,7 +138,7 @@ function Update-TrayState {
     $stopItem.Enabled = $true
   } elseif ($script:serviceStarting) {
     $notify.Icon = [System.Drawing.SystemIcons]::Information
-    $notify.Text = "Finance Dashboard: starting"
+    $notify.Text = "Treasury Finance Monitor: starting"
     $statusItem.Text = "Status: starting"
     $openLocalItem.Enabled = $false
     $openLanItem.Enabled = $false
@@ -147,7 +147,7 @@ function Update-TrayState {
     $stopItem.Enabled = $true
   } else {
     $notify.Icon = [System.Drawing.SystemIcons]::Warning
-    $notify.Text = "Finance Dashboard: stopped"
+    $notify.Text = "Treasury Finance Monitor: stopped"
     $statusItem.Text = "Status: stopped"
     $openLocalItem.Enabled = $false
     $openLanItem.Enabled = $false
@@ -181,7 +181,7 @@ $menu.Items.Add("-") | Out-Null
 $exitItem = $menu.Items.Add("Exit tray only")
 
 $notify = New-Object System.Windows.Forms.NotifyIcon
-$notify.Text = "Finance Dashboard"
+$notify.Text = "Treasury Finance Monitor"
 $notify.Icon = [System.Drawing.SystemIcons]::Information
 $notify.ContextMenuStrip = $menu
 $notify.Visible = $true
@@ -190,7 +190,7 @@ $openLocalItem.add_Click({ Open-Url $localUrl })
 $openLanItem.add_Click({ Open-Url (Get-LanUrl) })
 $copyLanItem.add_Click({
   [System.Windows.Forms.Clipboard]::SetText((Get-LanUrl))
-  $notify.ShowBalloonTip(1800, "Finance Dashboard", "LAN URL copied.", [System.Windows.Forms.ToolTipIcon]::Info)
+  $notify.ShowBalloonTip(1800, "Treasury Finance Monitor", "LAN URL copied.", [System.Windows.Forms.ToolTipIcon]::Info)
 })
 $startItem.add_Click({
   Start-DashboardService
@@ -210,17 +210,17 @@ $stopItem.add_Click({
 $autostartItem.add_Click({
   if (Test-Autostart) {
     Disable-Autostart
-    $notify.ShowBalloonTip(1800, "Finance Dashboard", "Auto start disabled.", [System.Windows.Forms.ToolTipIcon]::Info)
+    $notify.ShowBalloonTip(1800, "Treasury Finance Monitor", "Auto start disabled.", [System.Windows.Forms.ToolTipIcon]::Info)
   } else {
     Enable-Autostart
-    $notify.ShowBalloonTip(1800, "Finance Dashboard", "Auto start enabled.", [System.Windows.Forms.ToolTipIcon]::Info)
+    $notify.ShowBalloonTip(1800, "Treasury Finance Monitor", "Auto start enabled.", [System.Windows.Forms.ToolTipIcon]::Info)
   }
   Update-TrayState
 })
 $settingsItem.add_Click({
   $autoStartText = if (Test-Autostart) { "enabled" } else { "disabled" }
   $message = "Port: $port`nLocal URL: $localUrl`nLAN URL: $(Get-LanUrl)`nAuto start: $autoStartText`nProject path: $root"
-  [System.Windows.Forms.MessageBox]::Show($message, "Finance Dashboard Settings") | Out-Null
+  [System.Windows.Forms.MessageBox]::Show($message, "Treasury Finance Monitor Settings") | Out-Null
 })
 $exitItem.add_Click({
   $notify.Visible = $false
@@ -240,5 +240,5 @@ Start-DashboardService
 Wait-ForServer 30 | Out-Null
 Update-TrayState
 $timer.Start()
-$notify.ShowBalloonTip(1800, "Finance Dashboard", "Tray started. Right-click the icon to manage the service.", [System.Windows.Forms.ToolTipIcon]::Info)
+$notify.ShowBalloonTip(1800, "Treasury Finance Monitor", "Tray started. Right-click the icon to manage the service.", [System.Windows.Forms.ToolTipIcon]::Info)
 [System.Windows.Forms.Application]::Run()
